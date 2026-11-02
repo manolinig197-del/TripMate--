@@ -55,10 +55,11 @@ app = FastAPI(title="TripMate API", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "https://tripmate-frontend-zi6d.onrender.com",
-    ],
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "https://tripmate-frontend-zi6d.onrender.com",
+    "https://frontend-plum-one-27.vercel.app"
+],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
