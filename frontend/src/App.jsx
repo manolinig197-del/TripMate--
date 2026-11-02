@@ -1,9 +1,7 @@
 
 import { useEffect, useState } from "react";
 import "./App.css";
-
-
-
+const API = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 const destinationImages = {
   Hyderabad:
     "https://images.unsplash.com/photo-1570168007204-dfb528c6958f?w=800",
@@ -321,7 +319,11 @@ async function openItinerary(trip) {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.detail || "Unable to create trip.");
+        throw new Error(
+  typeof data.detail === "string"
+    ? data.detail
+    : JSON.stringify(data.detail || "Unable to create trip.")
+);
       }
 
       setMessage("Your trip has been saved successfully!");
