@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import "./App.css";
 
-const API = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+
 
 const destinationImages = {
   Hyderabad:
@@ -292,13 +292,12 @@ async function openItinerary(trip) {
     }
 
     const trip = {
-      destination: selectedPlace.name,
-      startDate,
-      endDate,
-      travellers: Number(formData.get("travellers")),
-      budget: Number(formData.get("budget")),
-    };
-
+  destination: selectedPlace.name,
+  start_date: startDate,
+  end_date: endDate,
+  travellers: Number(formData.get("travellers")),
+  budget: Number(formData.get("budget")),
+};
     const token = localStorage.getItem("tripmateToken");
 
     if (!token) {
