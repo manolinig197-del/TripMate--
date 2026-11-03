@@ -36,6 +36,7 @@ client = MongoClient(MONGODB_URI, serverSelectionTimeoutMS=10000)
 db = client[DATABASE_NAME]
 users = db["users"]
 trips = db["trips"]
+bookings = db["bookings"]
 
 password_hash = PasswordHash.recommended()
 bearer_scheme = HTTPBearer(auto_error=False)
@@ -102,7 +103,17 @@ class ItineraryDay(BaseModel):
 
 class ItineraryUpdate(BaseModel):
     days: list[ItineraryDay]
-
+class BookingCreate(BaseModel):
+    booking_type: str
+    service_name: str
+    destination: str
+    start_date: str
+    end_date: str
+    travellers: int = Field(default=1, ge=1)
+    details: str = ""
+class BookingStatusUpdate(BaseModel):
+    status: str
+    admin_message: str = ""
 
 # ----------------------------------------
 # HELPER FUNCTIONS
@@ -585,8 +596,126 @@ def get_itinerary(
         "trip_id": trip_id,
         "itinerary": trip.get("itinerary", []),
     }
+# ----------------------------------------
+# CREATE BOOKING REQUEST
+# ----------------------------------------
 
+@app.post("/bookings", status_code=201)
+def create_booking(
+    data: BookingCreate,
+    user=Depends(get_current_user),
+):
+    if data.booking_type not in [
+        "Hotel",
+        "Transport",
+        "Custom Itinerary",
+    ]:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid booking type.",
+        )
 
+    booking = {
+        "user_id": str(user["_id"]),
+        "user_name": user.get("name", ""),
+        "user_email": user.get("email", ""),
+        "booking_type": data.booking_type,
+        "service_name": data.service_name,
+        "destination": data.destination,
+        "start_date": data.start_date,
+        "end_date": data.end_date,
+        "travellers": data.travellers,
+        "details": data.details,
+        "status": "Pending",
+        "admin_message": "",
+        "created_at": datetime.now(timezone.utc),
+    }
+
+    result = bookings.insert_one(booking)
+    booking["id"] = str(result.inserted_id)
+    booking.pop("_id", None)
+
+    return {
+        "message": "Booking request submitted successfully!",
+        "booking": booking,
+    }
+    # ----------------------------------------
+# GET USER BOOKINGS
+# ----------------------------------------
+
+@app.get("/bookings")
+def get_my_bookings(user=Depends(get_current_user)):
+    user_bookings = list(
+        bookings.find(
+            {"user_id": str(user["_id"])}
+        ).sort("created_at", -1)
+    )
+
+    for booking in user_bookings:
+        booking["id"] = str(booking.pop("_id"))
+
+    return {
+        "total": len(user_bookings),
+        "bookings": user_bookings,
+    }
+    # ----------------------------------------
+# ADMIN: VIEW ALL BOOKINGS
+# ----------------------------------------
+
+@app.get("/admin/bookings")
+def admin_get_bookings(admin=Depends(get_admin_user)):
+    all_bookings = list(
+        bookings.find().sort("created_at", -1)
+    )
+
+    for booking in all_bookings:
+        booking["id"] = str(booking.pop("_id"))
+
+    return {
+        "total": len(all_bookings),
+        "bookings": all_bookings,
+    }
+# ----------------------------------------
+# ADMIN: UPDATE BOOKING STATUS
+# ----------------------------------------
+
+@app.put("/admin/bookings/{booking_id}/status")
+def update_booking_status(
+    booking_id: str,
+    data: BookingStatusUpdate,
+    admin=Depends(get_admin_user),
+):
+    if not ObjectId.is_valid(booking_id):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid booking ID.",
+        )
+
+    if data.status not in ["Approved", "Rejected"]:
+        raise HTTPException(
+            status_code=400,
+            detail="Status must be Approved or Rejected.",
+        )
+
+    result = bookings.update_one(
+        {"_id": ObjectId(booking_id)},
+        {
+            "$set": {
+                "status": data.status,
+                "admin_message": data.admin_message,
+            }
+        },
+    )
+
+    if result.matched_count == 0:
+        raise HTTPException(
+            status_code=404,
+            detail="Booking not found.",
+        )
+
+    return {
+        "message": f"Booking {data.status.lower()} successfully."
+    }
 # ----------------------------------------
 # ADMIN DASHBOARD
 # ----------------------------------------

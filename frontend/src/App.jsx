@@ -1,7 +1,8 @@
-
 import { useEffect, useState } from "react";
 import "./App.css";
+
 const API = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+
 const destinationImages = {
   Hyderabad:
     "https://images.unsplash.com/photo-1570168007204-dfb528c6958f?w=800",
@@ -34,6 +35,7 @@ const destinationImages = {
   Mysore:
     "https://images.unsplash.com/photo-1600112356915-089abb8fc71a?w=800",
 };
+
 function App() {
   const [page, setPage] = useState("home");
 
@@ -61,18 +63,23 @@ function App() {
 
   const [myTrips, setMyTrips] = useState([]);
   const [tripsLoading, setTripsLoading] = useState(false);
+
   const [adminStats, setAdminStats] = useState(null);
   const [adminUsers, setAdminUsers] = useState([]);
   const [adminTrips, setAdminTrips] = useState([]);
   const [adminLoading, setAdminLoading] = useState(false);
   const [adminSection, setAdminSection] = useState("overview");
+  const [adminSearch, setAdminSearch] = useState("");
+  const [myBookings, setMyBookings] = useState([]);
+  const [adminBookings, setAdminBookings] = useState([]);
+  const [bookingLoading, setBookingLoading] = useState(false);
+  const [bookingType, setBookingType] = useState("");
+
   const [selectedTrip, setSelectedTrip] = useState(null);
   const [itineraryDays, setItineraryDays] = useState([]);
   const [itineraryLoading, setItineraryLoading] = useState(false);
-  // -------------------------------
-  // LOAD DESTINATIONS
-  // --------------------------------
 
+  // LOAD DESTINATIONS
   useEffect(() => {
     async function loadDestinations() {
       try {
@@ -92,10 +99,7 @@ function App() {
     loadDestinations();
   }, []);
 
-  // --------------------------------
   // SIGNUP AND LOGIN
-  // --------------------------------
-
   async function handleSubmit(e) {
     e.preventDefault();
 
@@ -132,7 +136,6 @@ function App() {
       );
 
       setUser(data.user);
-
       setPage("home");
       setName("");
       setEmail("");
@@ -150,10 +153,7 @@ function App() {
     }
   }
 
-  // --------------------------------
   // LOGOUT
-  // --------------------------------
-
   function logout() {
     localStorage.removeItem("tripmateToken");
     localStorage.removeItem("tripmateUser");
@@ -167,10 +167,7 @@ function App() {
     setMessage("You have logged out.");
   }
 
-  // --------------------------------
   // SEARCH AND FILTER DESTINATIONS
-  // --------------------------------
-
   const filteredDestinations = destinations.filter((place) => {
     const matchesSearch = place.name
       .toLowerCase()
@@ -182,10 +179,7 @@ function App() {
     return matchesSearch && matchesCategory;
   });
 
-  // --------------------------------
   // FETCH MY TRIPS
-  // --------------------------------
-
   async function loadMyTrips() {
     const token = localStorage.getItem("tripmateToken");
 
@@ -222,58 +216,53 @@ function App() {
       setTripsLoading(false);
     }
   }
-  // --------------------------------
-// OPEN AND LOAD ITINERARY
-// --------------------------------
 
-async function openItinerary(trip) {
-  const token = localStorage.getItem("tripmateToken");
+  // OPEN AND LOAD ITINERARY
+  async function openItinerary(trip) {
+    const token = localStorage.getItem("tripmateToken");
 
-  setSelectedTrip(trip);
-  setItineraryLoading(true);
-  setMessage("");
+    setSelectedTrip(trip);
+    setItineraryLoading(true);
+    setMessage("");
 
-  try {
-    const response = await fetch(
-      `${API}/trips/${trip.id}/itinerary`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+    try {
+      const response = await fetch(
+        `${API}/trips/${trip.id}/itinerary`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.detail || "Unable to load itinerary.");
       }
-    );
 
-    const data = await response.json();
+      setItineraryDays(
+        data.itinerary.length > 0
+          ? data.itinerary
+          : [
+              {
+                day: 1,
+                activities: [
+                  { time: "", activity: "", notes: "" },
+                ],
+              },
+            ]
+      );
 
-    if (!response.ok) {
-      throw new Error(data.detail || "Unable to load itinerary.");
+      setPage("itinerary");
+    } catch (error) {
+      setMessage(error.message);
+    } finally {
+      setItineraryLoading(false);
     }
-
-    setItineraryDays(
-      data.itinerary.length > 0
-        ? data.itinerary
-        : [
-            {
-              day: 1,
-              activities: [
-                { time: "", activity: "", notes: "" },
-              ],
-            },
-          ]
-    );
-
-    setPage("itinerary");
-  } catch (error) {
-    setMessage(error.message);
-  } finally {
-    setItineraryLoading(false);
   }
-}
 
-  // --------------------------------
   // CREATE AND SAVE TRIP
-  // --------------------------------
-
   async function handleCreateTrip(e) {
     e.preventDefault();
 
@@ -290,12 +279,13 @@ async function openItinerary(trip) {
     }
 
     const trip = {
-  destination: selectedPlace.name,
-  start_date: startDate,
-  end_date: endDate,
-  travellers: Number(formData.get("travellers")),
-  budget: Number(formData.get("budget")),
-};
+      destination: selectedPlace.name,
+      start_date: startDate,
+      end_date: endDate,
+      travellers: Number(formData.get("travellers")),
+      budget: Number(formData.get("budget")),
+    };
+
     const token = localStorage.getItem("tripmateToken");
 
     if (!token) {
@@ -320,14 +310,15 @@ async function openItinerary(trip) {
 
       if (!response.ok) {
         throw new Error(
-  typeof data.detail === "string"
-    ? data.detail
-    : JSON.stringify(data.detail || "Unable to create trip.")
-);
+          typeof data.detail === "string"
+            ? data.detail
+            : JSON.stringify(
+                data.detail || "Unable to create trip."
+              )
+        );
       }
 
       setMessage("Your trip has been saved successfully!");
-
       setTripFormOpen(false);
 
       await loadMyTrips();
@@ -337,19 +328,95 @@ async function openItinerary(trip) {
       setLoading(false);
     }
   }
-// --------------------------------
-// SAVE ITINERARY
-// --------------------------------
 
-async function saveItinerary() {
+  // SAVE ITINERARY
+  async function saveItinerary() {
+    const token = localStorage.getItem("tripmateToken");
+
+    setItineraryLoading(true);
+    setMessage("");
+
+    try {
+      const response = await fetch(
+        `${API}/trips/${selectedTrip.id}/itinerary`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            days: itineraryDays,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.detail || "Unable to save itinerary.");
+      }
+
+      setMessage("Your itinerary has been saved successfully!");
+    } catch (error) {
+      setMessage(error.message);
+    } finally {
+      setItineraryLoading(false);
+    }
+  }
+
+  // ITINERARY EDITING FUNCTIONS
+  function updateActivity(dayIndex, activityIndex, field, value) {
+    setItineraryDays((prev) =>
+      prev.map((day, dIndex) =>
+        dIndex === dayIndex
+          ? {
+              ...day,
+              activities: day.activities.map((activity, aIndex) =>
+                aIndex === activityIndex
+                  ? { ...activity, [field]: value }
+                  : activity
+              ),
+            }
+          : day
+      )
+    );
+  }
+
+  function addItineraryDay() {
+    setItineraryDays((prev) => [
+      ...prev,
+      {
+        day: prev.length + 1,
+        activities: [{ time: "", activity: "", notes: "" }],
+      },
+    ]);
+  }
+
+  function addActivity(dayIndex) {
+    setItineraryDays((prev) =>
+      prev.map((day, index) =>
+        index === dayIndex
+          ? {
+              ...day,
+              activities: [
+                ...day.activities,
+                { time: "", activity: "", notes: "" },
+              ],
+            }
+          : day
+      )
+    );
+  }
+  async function updateBookingStatus(bookingId, status) {
   const token = localStorage.getItem("tripmateToken");
-
-  setItineraryLoading(true);
-  setMessage("");
+  const adminMessage = prompt(
+    `Enter a message for ${status.toLowerCase()}:`
+  ) || "";
 
   try {
     const response = await fetch(
-      `${API}/trips/${selectedTrip.id}/itinerary`,
+      `${API}/admin/bookings/${bookingId}/status`,
       {
         method: "PUT",
         headers: {
@@ -357,7 +424,8 @@ async function saveItinerary() {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          days: itineraryDays,
+          status,
+          admin_message: adminMessage,
         }),
       }
     );
@@ -365,105 +433,106 @@ async function saveItinerary() {
     const data = await response.json();
 
     if (!response.ok) {
-      throw new Error(data.detail || "Unable to save itinerary.");
+      throw new Error(data.detail || "Unable to update booking.");
     }
 
-    setMessage("Your itinerary has been saved successfully!");
+    setMessage(`Booking ${status.toLowerCase()} successfully!`);
+    await loadAdminData();
   } catch (error) {
     setMessage(error.message);
-  } finally {
-    setItineraryLoading(false);
   }
 }
-// --------------------------------
-// ITINERARY EDITING FUNCTIONS
-// --------------------------------
 
-function updateActivity(dayIndex, activityIndex, field, value) {
-  setItineraryDays((prev) =>
-    prev.map((day, dIndex) =>
-      dIndex === dayIndex
-        ? {
-            ...day,
-            activities: day.activities.map((activity, aIndex) =>
-              aIndex === activityIndex
-                ? { ...activity, [field]: value }
-                : activity
-            ),
-          }
-        : day
-    )
-  );
-}
+  // LOAD ADMIN DASHBOARD DATA
+  async function loadAdminData() {
+    const token = localStorage.getItem("tripmateToken");
 
-function addItineraryDay() {
-  setItineraryDays((prev) => [
-    ...prev,
-    {
-      day: prev.length + 1,
-      activities: [{ time: "", activity: "", notes: "" }],
-    },
-  ]);
-}
+    setAdminLoading(true);
+    setMessage("");
 
-function addActivity(dayIndex) {
-  setItineraryDays((prev) =>
-    prev.map((day, index) =>
-      index === dayIndex
-        ? {
-            ...day,
-            activities: [
-              ...day.activities,
-              { time: "", activity: "", notes: "" },
-            ],
-          }
-        : day
-    )
-  );
-}
-// --------------------------------
-// LOAD ADMIN DASHBOARD DATA
-// --------------------------------
+    try {
+      const headers = {
+        Authorization: `Bearer ${token}`,
+      };
 
-async function loadAdminData() {
+      const [statsResponse, usersResponse, tripsResponse] =
+        await Promise.all([
+          fetch(`${API}/admin/dashboard`, { headers }),
+          fetch(`${API}/admin/users`, { headers }),
+          fetch(`${API}/admin/trips`, { headers }),
+        ]);
+
+      if (
+        !statsResponse.ok ||
+        !usersResponse.ok ||
+        !tripsResponse.ok
+      ) {
+        throw new Error("Unable to load admin dashboard data.");
+      }
+
+      const statsData = await statsResponse.json();
+      const usersData = await usersResponse.json();
+      const tripsData = await tripsResponse.json();
+
+      setAdminStats(statsData);
+      setAdminUsers(usersData.users || usersData);
+      setAdminTrips(tripsData.trips || tripsData);
+    } catch (error) {
+      setMessage(error.message);
+    } finally {
+      setAdminLoading(false);
+    }
+  }
+// LOAD MY BOOKINGS
+async function loadMyBookings() {
   const token = localStorage.getItem("tripmateToken");
-
-  setAdminLoading(true);
-  setMessage("");
+  setBookingLoading(true);
 
   try {
-    const headers = {
-      Authorization: `Bearer ${token}`,
-    };
+    const response = await fetch(`${API}/bookings`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
 
-    const [statsResponse, usersResponse, tripsResponse] =
-      await Promise.all([
-        fetch(`${API}/admin/dashboard`, { headers }),
-        fetch(`${API}/admin/users`, { headers }),
-        fetch(`${API}/admin/trips`, { headers }),
-      ]);
-
-    if (!statsResponse.ok || !usersResponse.ok || !tripsResponse.ok) {
-      throw new Error("Unable to load admin dashboard data.");
+    if (!response.ok) {
+      throw new Error("Unable to load your bookings.");
     }
 
-    const statsData = await statsResponse.json();
-    const usersData = await usersResponse.json();
-    const tripsData = await tripsResponse.json();
-
-    setAdminStats(statsData);
-    setAdminUsers(usersData.users || usersData);
-    setAdminTrips(tripsData.trips || tripsData);
+    const data = await response.json();
+    setMyBookings(data.bookings || []);
   } catch (error) {
     setMessage(error.message);
   } finally {
-    setAdminLoading(false);
+    setBookingLoading(false);
   }
 }
-  // --------------------------------
-  // OPEN HOME PAGE
-  // --------------------------------
 
+// LOAD ALL BOOKINGS FOR ADMIN
+async function loadAdminBookings() {
+  const token = localStorage.getItem("tripmateToken");
+  setBookingLoading(true);
+
+  try {
+    const response = await fetch(`${API}/admin/bookings`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error("Unable to load bookings.");
+    }
+
+    const data = await response.json();
+    setAdminBookings(data.bookings || []);
+  } catch (error) {
+    setMessage(error.message);
+  } finally {
+    setBookingLoading(false);
+  }
+}
+  // OPEN HOME PAGE
   function goHome() {
     setPage("home");
     setSelectedPlace(null);
@@ -471,17 +540,11 @@ async function loadAdminData() {
     setMessage("");
   }
 
-  // --------------------------------
   // FRONTEND
-  // --------------------------------
-
   return (
     <div className="app">
-
       {/* NAVBAR */}
-
       <header className="navbar">
-
         <h2 onClick={goHome}>
           TripMate ✈
         </h2>
@@ -506,24 +569,36 @@ async function loadAdminData() {
           </button>
 
           {user && (
-            <button onClick={loadMyTrips}>
-              My Trips
-            </button>
-            
-          )}
-{user?.role === "admin" && (
-  <button
-    onClick={() => {
-      setPage("admin");
-      loadAdminData();
-    }}
-  >
-    Admin Dashboard
-  </button>
+  <>
+    <button onClick={loadMyTrips}>
+      My Trips
+    </button>
+
+    <button
+      onClick={() => {
+        setPage("myBookings");
+        loadMyBookings();
+      }}
+    >
+      My Bookings
+    </button>
+  </>
 )}
+          {user?.role === "admin" && (
+            <button
+              onClick={() => {
+                setPage("admin");
+                loadAdminData();
+              }}
+            >
+              Admin Dashboard
+            </button>
+          )}
+
           {user ? (
             <>
               <span>Hi, {user.name}</span>
+
               <button onClick={logout}>
                 Logout
               </button>
@@ -543,15 +618,11 @@ async function loadAdminData() {
       </header>
 
       <main>
-
         {/* HOME PAGE */}
-
         {page === "home" && !selectedPlace && (
           <>
             <section className="hero">
-
               <div className="hero-content">
-
                 <span className="hero-tag">
                   YOUR JOURNEY BEGINS HERE
                 </span>
@@ -577,16 +648,12 @@ async function loadAdminData() {
                 >
                   Explore Destinations →
                 </button>
-
               </div>
             </section>
 
             {/* DESTINATIONS */}
-
             <section className="destinations" id="explore">
-
               <div className="section-heading">
-
                 <span>EXPLORE THE WORLD</span>
 
                 <h2>Popular Destinations</h2>
@@ -594,13 +661,10 @@ async function loadAdminData() {
                 <p>
                   Find the perfect place for your next adventure.
                 </p>
-
               </div>
 
               {/* SEARCH AND FILTER */}
-
               <div className="destination-tools">
-
                 <input
                   type="text"
                   placeholder="Search destinations..."
@@ -619,19 +683,15 @@ async function loadAdminData() {
                   <option value="Heritage">Heritage</option>
                   <option value="Nature">Nature</option>
                 </select>
-
               </div>
 
               {/* DESTINATION CARDS */}
-
               <div className="destination-grid">
-
                 {filteredDestinations.map((place) => (
                   <article
                     className="destination-card"
                     key={place.id}
                   >
-
                     <img
                       src={
                         place.image ||
@@ -644,7 +704,6 @@ async function loadAdminData() {
                     />
 
                     <div className="destination-info">
-
                       <span className="category-tag">
                         {place.category}
                       </span>
@@ -654,7 +713,6 @@ async function loadAdminData() {
                       <p>{place.description}</p>
 
                       <div className="destination-bottom">
-
                         <strong>
                           ₹{Number(place.price).toLocaleString("en-IN")}
                         </strong>
@@ -668,14 +726,10 @@ async function loadAdminData() {
                         >
                           View Details →
                         </button>
-
                       </div>
-
                     </div>
-
                   </article>
                 ))}
-
               </div>
 
               {filteredDestinations.length === 0 && (
@@ -683,17 +737,13 @@ async function loadAdminData() {
                   No destinations found.
                 </p>
               )}
-
             </section>
           </>
         )}
 
         {/* DESTINATION DETAILS */}
-
         {page === "home" && selectedPlace && (
-
           <section className="place-details">
-
             <button
               className="back-button"
               onClick={() => {
@@ -731,7 +781,6 @@ async function loadAdminData() {
             </h2>
 
             {!tripFormOpen ? (
-
               <button
                 className="book-button"
                 onClick={() => {
@@ -747,14 +796,11 @@ async function loadAdminData() {
               >
                 Plan Your Trip
               </button>
-
             ) : (
-
               <form
                 className="trip-form"
                 onSubmit={handleCreateTrip}
               >
-
                 <h2>
                   Plan your trip to {selectedPlace.name}
                 </h2>
@@ -815,18 +861,115 @@ async function loadAdminData() {
 
               </form>
             )}
+            {/* BOOKING REQUEST SECTION */}
+<div className="booking-section">
+  <h2>Book Your Travel Services</h2>
+  <p>Choose the services you need for your trip.</p>
 
+  <form
+    onSubmit={async (e) => {
+      e.preventDefault();
+
+      const token = localStorage.getItem("tripmateToken");
+      const formData = new FormData(e.target);
+
+      const bookingData = {
+        booking_type: formData.get("booking_type"),
+        service_name: formData.get("service_name"),
+        destination: selectedPlace.name,
+        start_date: formData.get("start_date"),
+        end_date: formData.get("end_date"),
+        travellers: Number(formData.get("travellers")),
+        details: formData.get("details"),
+      };
+
+      try {
+        const response = await fetch(`${API}/bookings`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(bookingData),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.detail || "Booking request failed.");
+        }
+
+        setMessage("Booking request submitted successfully!");
+        e.target.reset();
+      } catch (error) {
+        setMessage(error.message);
+      }
+    }}
+  >
+    <label>Booking Type</label>
+    <select
+  name="booking_type"
+  value={bookingType}
+  onChange={(e) => {
+    setBookingType(e.target.value);
+  }}
+  required
+>
+      <option value="">Select a service</option>
+      <option value="Hotel">Hotel Booking</option>
+      <option value="Transport">Transport Booking</option>
+      <option value="Custom Itinerary">Custom Itinerary</option>
+    </select>
+
+    <label>Select Hotel or Transport</label>
+<select name="service_name" required>
+  <option value="">Choose an option</option>
+
+  {bookingType === "Hotel" && (
+    <>
+      <option value="Grand Palace Hotel">Grand Palace Hotel</option>
+      <option value="Ocean View Resort">Ocean View Resort</option>
+      <option value="Sunshine Residency">Sunshine Residency</option>
+      <option value="Luxury Stay Hotel">Luxury Stay Hotel</option>
+    </>
+  )}
+
+  {bookingType === "Transport" && (
+    <>
+      <option value="Bus">Bus</option>
+      <option value="Train">Train</option>
+      <option value="Flight">Flight</option>
+      <option value="Private Cab">Private Cab</option>
+    </>
+  )}
+
+  {bookingType === "Custom Itinerary" && (
+    <option value="Custom Travel Plan">Custom Travel Plan</option>
+  )}
+</select>
+
+    <label>Start Date</label>
+    <input type="date" name="start_date" required />
+
+    <label>End Date</label>
+    <input type="date" name="end_date" required />
+
+    <label>Number of Travellers</label>
+    <input type="number" name="travellers" min="1" defaultValue="1" required />
+
+    <label>Additional Details</label>
+    <textarea name="details" placeholder="Enter your requirements" />
+
+    <button type="submit">Submit Booking Request</button>
+  </form>
+</div>
           </section>
         )}
 
         {/* MY TRIPS PAGE */}
-
         {page === "myTrips" && (
-
           <section className="destinations my-trips">
-
             <div className="section-heading">
-
               <span>YOUR TRAVEL PLANS</span>
 
               <h2>My Trips</h2>
@@ -834,7 +977,6 @@ async function loadAdminData() {
               <p>
                 All your saved travel plans in one place.
               </p>
-
             </div>
 
             <button
@@ -847,7 +989,6 @@ async function loadAdminData() {
             {tripsLoading ? (
               <p>Loading your trips...</p>
             ) : myTrips.length === 0 ? (
-
               <div className="empty-message">
                 <h3>No trips created yet!</h3>
 
@@ -859,18 +1000,13 @@ async function loadAdminData() {
                   Explore Destinations
                 </button>
               </div>
-
             ) : (
-
               <div className="destination-grid">
-
                 {myTrips.map((trip) => (
-
                   <article
                     className="destination-card trip-card"
                     key={trip.id}
                   >
-
                     {destinationImages[trip.destination] && (
                       <img
                         src={destinationImages[trip.destination]}
@@ -879,7 +1015,6 @@ async function loadAdminData() {
                     )}
 
                     <div className="destination-info">
-
                       <span className="category-tag">
                         {trip.status}
                       </span>
@@ -888,12 +1023,12 @@ async function loadAdminData() {
 
                       <p>
                         <strong>Start date:</strong>{" "}
-                        {trip.startDate}
+                        {trip.start_date}
                       </p>
 
                       <p>
                         <strong>End date:</strong>{" "}
-                        {trip.endDate}
+                        {trip.end_date}
                       </p>
 
                       <p>
@@ -905,181 +1040,489 @@ async function loadAdminData() {
                         <strong>Budget:</strong>{" "}
                         ₹{Number(trip.budget).toLocaleString("en-IN")}
                       </p>
+
                       <button
-  onClick={() => openItinerary(trip)}
-  disabled={itineraryLoading}
->
-  Plan / View Itinerary
-</button>
+                        onClick={() => openItinerary(trip)}
+                        disabled={itineraryLoading}
+                      >
+                        Plan / View Itinerary
+                      </button>
+                      {trip.itinerary?.length > 0 && (
+  <div className="trip-itinerary-preview">
+    <h4> Your Itinerary </h4>
 
-                    </div>
+    {trip.itinerary.map((day, dayIndex) => (
+      <div key={dayIndex}>
+        <strong>Day {day.day || dayIndex + 1}</strong>
 
-                  </article>
-
-                ))}
-
-              </div>
-
-            )}
-
-          </section>
-        )}
-{/* ITINERARY PAGE */}
-{page === "itinerary" && selectedTrip && (
-  <section className="itinerary-page">
-    <h1>Plan Your Trip to {selectedTrip.destination}</h1>
-
-    <p>
-      {selectedTrip.start_date} to {selectedTrip.end_date}
-    </p>
-
-    <button onClick={() => setPage("myTrips")}>
-      Back to My Trips
-    </button>
-
-    {itineraryDays.map((day, dayIndex) => (
-      <div className="itinerary-day" key={dayIndex}>
-        <h2>Day {day.day}</h2>
-
-        {day.activities.map((activity, activityIndex) => (
-          <div className="activity-card" key={activityIndex}>
-            <input
-              type="time"
-              value={activity.time}
-              onChange={(e) =>
-                updateActivity(dayIndex, activityIndex, "time", e.target.value)
-              }
-              placeholder="Time"
-            />
-
-            <input
-              type="text"
-              value={activity.activity}
-              onChange={(e) =>
-                updateActivity(dayIndex, activityIndex, "activity", e.target.value)
-              }
-              placeholder="Activity (e.g. Visit a beach)"
-            />
-
-            <textarea
-              value={activity.notes}
-              onChange={(e) =>
-                updateActivity(dayIndex, activityIndex, "notes", e.target.value)
-              }
-              placeholder="Add notes..."
-            />
-          </div>
+        {day.activities?.map((activity, activityIndex) => (
+          <p key={activityIndex}>
+            {activity.time} — {activity.activity}
+            
+          </p>
         ))}
-
-        <button onClick={() => addActivity(dayIndex)}>
-          + Add Activity
-        </button>
       </div>
     ))}
-
-    <button onClick={addItineraryDay}>
-      + Add Another Day
-    </button>
-
-    <button onClick={saveItinerary} disabled={itineraryLoading}>
-      {itineraryLoading ? "Saving..." : "Save Itinerary"}
-    </button>
-  </section>
+  </div>
 )}
-{/* ADMIN DASHBOARD */}
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
+        {/* MY BOOKINGS PAGE */}
 
-{page === "admin" && (
-  <section className="destinations my-trips">
+{/* MY BOOKINGS PAGE */}
+{page === "myBookings" && (
+  <section className="my-bookings-page">
 
-    <div className="section-heading">
-      <span>TRIPMATE MANAGEMENT</span>
-      <h2>Admin Dashboard</h2>
-      <p>Manage users, trips and destinations.</p>
+    <div className="bookings-hero">
+      <span className="bookings-subtitle">YOUR RESERVATIONS</span>
+      <h1>My Bookings</h1>
+      <p>Track all your hotel and transport booking requests.</p>
+
+      <button className="booking-back-btn" onClick={goHome}>
+        ← Back to Home
+      </button>
     </div>
 
-    <button onClick={goHome} className="back-button">
-      ← Back to Home
+    {bookingLoading ? (
+      <p className="booking-empty">Loading your bookings...</p>
+    ) : myBookings.length === 0 ? (
+      <div className="booking-empty">
+        <h2>No bookings yet!</h2>
+        <p>Your travel reservations will appear here.</p>
+      </div>
+    ) : (
+      <div className="my-bookings-grid">
+        {myBookings.map((booking) => (
+          <article className="my-booking-card" key={booking.id}>
+
+            <div
+              className="booking-photo"
+              style={{
+                backgroundImage: `url(${
+                  booking.booking_type === "Hotel"
+                    ? "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=600"
+                    : booking.booking_type === "Transport"
+                    ? "https://images.unsplash.com/photo-1474487548417-781cb71495f3?w=600"
+                    : "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=600"
+                })`
+              }}
+            >
+              <span className="booking-photo-icon">
+                {booking.booking_type === "Hotel" ? "🏨" :
+                 booking.booking_type === "Transport" ? "🚆" : "🗺️"}
+              </span>
+            </div>
+
+            <div className="booking-card-content">
+
+              <div className="booking-card-heading">
+                <div>
+                  <h2>{booking.service_name}</h2>
+                  <span className="booking-type-badge">
+                    {booking.booking_type}
+                  </span>
+                </div>
+
+                <span className={`booking-status ${booking.status?.toLowerCase()}`}>
+                  {booking.status === "Pending" ? "◷" : 
+                   booking.status === "Approved" ? "✓" : "✕"}
+                  {" "}{booking.status}
+                </span>
+              </div>
+
+              <div className="booking-details">
+                <p>📍 <strong>Destination:</strong> {booking.destination}</p>
+                <p>📅 <strong>Start Date:</strong> {booking.start_date}</p>
+                <p>📅 <strong>End Date:</strong> {booking.end_date}</p>
+                <p>👥 <strong>Travellers:</strong> {booking.travellers}</p>
+              </div>
+
+              <div className="booking-admin-message">
+                💬 <strong>Admin Message:</strong>{" "}
+                {booking.admin_message || "No message yet"}
+              </div>
+              {booking.status === "Pending" && (
+  <div className="booking-actions">
+    <button
+      className="approve-btn"
+      onClick={() => updateBookingStatus(booking.id, "Approved")}
+    >
+      Accept
     </button>
 
-    {adminLoading ? (
-      <p>Loading dashboard...</p>
-    ) : (
-      <>
-        <div className="admin-tabs">
-          <button onClick={() => setAdminSection("overview")}>
-            Overview
-          </button>
-          <button onClick={() => setAdminSection("users")}>
-            Users
-          </button>
-          <button onClick={() => setAdminSection("trips")}>
-            Trips
-          </button>
-        </div>
+    <button
+      className="reject-btn"
+      onClick={() => updateBookingStatus(booking.id, "Rejected")}
+    >
+      Reject
+    </button>
+  </div>
+)}
+              {booking.status === "Pending" && (
+  <div className="booking-actions">
+    <button
+      className="approve-btn"
+      onClick={() => updateBookingStatus(booking.id, "Approved")}
+    >
+      Accept
+    </button>
 
-        {adminSection === "overview" && (
-          <div className="admin-stats">
+    <button
+      className="reject-btn"
+      onClick={() => updateBookingStatus(booking.id, "Rejected")}
+    >
+      Reject
+    </button>
+  </div>
+)}
 
-            <div className="destination-card">
-              <h3>Total Users</h3>
-              <h2>{adminStats?.total_users ?? adminUsers.length}</h2>
             </div>
-
-            <div className="destination-card">
-              <h3>Total Trips</h3>
-              <h2>{adminStats?.total_trips ?? adminTrips.length}</h2>
-            </div>
-
-            <div className="destination-card">
-              <h3>Total Destinations</h3>
-              <h2>{adminStats?.total_destinations ?? 15}</h2>
-            </div>
-
-          </div>
-        )}
-
-        {adminSection === "users" && (
-          <div>
-            <h2>Registered Users</h2>
-
-            {adminUsers.map((item) => (
-              <div className="destination-card" key={item.id || item._id}>
-                <h3>{item.name}</h3>
-                <p>Email: {item.email}</p>
-                <p>Role: {item.role || "user"}</p>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {adminSection === "trips" && (
-          <div>
-            <h2>All Trips</h2>
-
-            {adminTrips.map((trip) => (
-              <div className="destination-card" key={trip.id || trip._id}>
-                <h3>{trip.destination}</h3>
-                <p>Start Date: {trip.start_date || "Not specified"}</p>
-                <p>End Date: {trip.end_date || "Not specified"}</p>
-                <p>Travellers: {trip.travellers}</p>
-                <p>Budget: ₹{trip.budget}</p>
-                <p>Status: {trip.status}</p>
-                <p>User ID: {trip.user_id}</p>
-              </div>
-            ))}
-          </div>
-        )}
-      </>
+          </article>
+        ))}
+      </div>
     )}
-
   </section>
 )}
+
+        {/* ITINERARY PAGE */}
+        {page === "itinerary" && selectedTrip && (
+          <section className="itinerary-page itinerary-section">
+            <h1>
+              Plan Your Trip to {selectedTrip.destination}
+            </h1>
+
+            <p>
+              {selectedTrip.start_date} to {selectedTrip.end_date}
+            </p>
+
+            <button onClick={() => setPage("myTrips")}>
+              Back to My Trips
+            </button>
+
+            {itineraryDays.map((day, dayIndex) => (
+              <div className="itinerary-day" key={dayIndex}>
+                <h2>Day {day.day}</h2>
+
+                {day.activities.map((activity, activityIndex) => (
+                  <div
+                    className="activity-card"
+                    key={activityIndex}
+                  >
+                    <input
+                      type="time"
+                      value={activity.time || ""}
+                      onChange={(e) =>
+                        updateActivity(
+                          dayIndex,
+                          activityIndex,
+                          "time",
+                          e.target.value
+                        )
+                      }
+                    />
+
+                    <select
+                      value={activity.activity || ""}
+                      onChange={(e) =>
+                        updateActivity(
+                          dayIndex,
+                          activityIndex,
+                          "activity",
+                          e.target.value
+                        )
+                      }
+                    >
+                      <option value="">Select an activity</option>
+                      <option value="Sightseeing">Sightseeing</option>
+                      <option value="Trekking">Trekking</option>
+                      <option value="Shopping">Shopping</option>
+                      <option value="Adventure Activities">
+                        Adventure Activities
+                      </option>
+                      <option value="Beach Activities">
+                        Beach Activities
+                      </option>
+                      <option value="Food and Dining">
+                        Food and Dining
+                      </option>
+                      <option value="Photography">Photography</option>
+                      <option value="Relaxation">Relaxation</option>
+                      <option value="Temple Visit">Temple Visit</option>
+                      <option value="Local Exploration">
+                        Local Exploration
+                      </option>
+                    </select>
+
+                    <textarea
+                      value={activity.notes || ""}
+                      onChange={(e) =>
+                        updateActivity(
+                          dayIndex,
+                          activityIndex,
+                          "notes",
+                          e.target.value
+                        )
+                      }
+                      placeholder="Add notes..."
+                    />
+                  </div>
+                ))}
+
+                <button onClick={() => addActivity(dayIndex)}>
+                  + Add Activity
+                </button>
+              </div>
+            ))}
+
+            <button onClick={addItineraryDay}>
+              + Add Another Day
+            </button>
+
+            <button
+              onClick={saveItinerary}
+              disabled={itineraryLoading}
+            >
+              {itineraryLoading ? "Saving..." : "Save Itinerary"}
+            </button>
+          </section>
+        )}
+
+        {/* ADMIN DASHBOARD */}
+        {page === "admin" && (
+          <section className="destinations my-trips">
+            <div className="section-heading">
+              <span>TRIPMATE MANAGEMENT</span>
+              <h2>Admin Dashboard</h2>
+              <p>Manage users, trips and destinations.</p>
+            </div>
+
+            <button
+              onClick={goHome}
+              className="back-button"
+            >
+              ← Back to Home
+            </button>
+
+            {adminLoading ? (
+              <p>Loading dashboard...</p>
+            ) : (
+              <>
+                <div className="admin-tabs">
+                  <button
+                    onClick={() => setAdminSection("overview")}
+                  >
+                    Overview
+                  </button>
+
+                  <button
+                    onClick={() => setAdminSection("users")}
+                  >
+                    Users
+                  </button>
+
+                  <button
+                    onClick={() => setAdminSection("trips")}
+                  >
+                    Trips
+                  </button>
+                  <button
+  onClick={() => {
+    setAdminSection("bookings");
+    loadAdminBookings();
+  }}
+>
+  Bookings
+</button>
+                </div>
+
+                {adminSection === "overview" && (
+  <div className="admin-overview">
+
+    <div className="admin-welcome">
+      <h2>Welcome to TripMate Admin 👋</h2>
+      <p>Here's an overview of your platform.</p>
+    </div>
+
+    <div className="admin-stats">
+
+      <div className="admin-stat-card">
+        <div className="stat-icon">👥</div>
+        <h3>Total Users</h3>
+        <h2>{adminStats?.total_users ?? adminUsers.length}</h2>
+        <p>Registered users on TripMate</p>
+      </div>
+
+      <div className="admin-stat-card">
+        <div className="stat-icon">✈️</div>
+        <h3>Total Trips</h3>
+        <h2>{adminStats?.total_trips ?? adminTrips.length}</h2>
+        <p>Trips created by users</p>
+      </div>
+
+      <div className="admin-stat-card">
+        <div className="stat-icon">📍</div>
+        <h3>Total Destinations</h3>
+        <h2>{adminStats?.total_destinations ?? 15}</h2>
+        <p>Available travel destinations</p>
+      </div>
+
+    </div>
+  </div>
+)}
+
+                {adminSection === "users" && (
+                  <div>
+                    <h2>Registered Users</h2>
+
+                    {adminUsers.map((item) => (
+                      <div
+                        className="destination-card"
+                        key={item.id || item._id}
+                      >
+                        <h3>{item.name}</h3>
+                        <p>Email: {item.email}</p>
+                        <p>Role: {item.role || "user"}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {adminSection === "trips" && (
+                  <div>
+                    <h2>All Trips</h2>
+
+                    {adminTrips.map((trip) => (
+                      <div
+                        className="destination-card"
+                        key={trip.id || trip._id}
+                      >
+                        <h3>{trip.destination}</h3>
+
+                        <p>
+                          Start Date: {trip.start_date || "Not specified"}
+                        </p>
+
+                        <p>
+                          End Date: {trip.end_date || "Not specified"}
+                        </p>
+
+                        <p>Travellers: {trip.travellers}</p>
+                        <p>Budget: ₹{trip.budget}</p>
+                        <p>Status: {trip.status}</p>
+                        <p>User ID: {trip.user_id}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+            {adminSection === "bookings" && (
+  <div>
+    <h2>All Booking Requests</h2>
+
+    {bookingLoading ? (
+      <p>Loading bookings...</p>
+    ) : adminBookings.length === 0 ? (
+      <p>No booking requests yet.</p>
+    ) : (
+      <div className="destination-grid">
+        {adminBookings.map((booking) => (
+          <div className="destination-card" key={booking.id}>
+            <h3>{booking.service_name}</h3>
+            <p>Type: {booking.booking_type}</p>
+            <p>Destination: {booking.destination}</p>
+            <p>User: {booking.user_name}</p>
+            <p>Email: {booking.user_email}</p>
+            <p>Start Date: {booking.start_date}</p>
+            <p>End Date: {booking.end_date}</p>
+            <p>Travellers: {booking.travellers}</p>
+            <p>Status: {booking.status}</p>
+            <p>Details: {booking.details || "None"}</p>
+            <p>Admin Message: {booking.admin_message || "None"}</p>
+            <div className="booking-actions">
+  <button
+    onClick={async () => {
+      const token = localStorage.getItem("tripmateToken");
+      const adminMessage = prompt("Enter approval message:") || "";
+
+      const response = await fetch(
+        `${API}/admin/bookings/${booking.id}/status`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            status: "Approved",
+            admin_message: adminMessage,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setMessage("Booking approved successfully!");
+        loadAdminBookings();
+      } else {
+        setMessage(data.detail || "Unable to approve booking.");
+      }
+    }}
+  >
+    Approve
+  </button>
+
+  <button
+    onClick={async () => {
+      const token = localStorage.getItem("tripmateToken");
+      const adminMessage = prompt("Enter rejection reason:") || "";
+
+      const response = await fetch(
+        `${API}/admin/bookings/${booking.id}/status`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            status: "Rejected",
+            admin_message: adminMessage,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setMessage("Booking rejected.");
+        loadAdminBookings();
+      } else {
+        setMessage(data.detail || "Unable to reject booking.");
+      }
+    }}
+  >
+    Reject
+  </button>
+</div>
+          </div>
+        ))}
+      </div>
+    )}
+  </div>
+)}
+          </section>
+        )}
+
         {/* LOGIN AND SIGNUP */}
-
         {(page === "login" || page === "signup") && (
-
           <section className="auth-section">
-
             <h2>
               {page === "signup"
                 ? "Create Your Account"
@@ -1087,9 +1530,7 @@ async function loadAdminData() {
             </h2>
 
             <form onSubmit={handleSubmit}>
-
               {page === "signup" && (
-
                 <input
                   type="text"
                   placeholder="Your name"
@@ -1097,7 +1538,6 @@ async function loadAdminData() {
                   onChange={(e) => setName(e.target.value)}
                   required
                 />
-
               )}
 
               <input
@@ -1124,7 +1564,6 @@ async function loadAdminData() {
                     ? "Create Account"
                     : "Login"}
               </button>
-
             </form>
 
             <p>
@@ -1144,30 +1583,25 @@ async function loadAdminData() {
                 {page === "signup" ? " Login" : " Sign Up"}
               </button>
             </p>
-
           </section>
         )}
 
         {/* SUCCESS AND ERROR MESSAGES */}
-
         {message && (
           <p className="message">
             {message}
           </p>
         )}
-
       </main>
 
       {/* FOOTER */}
-
       <footer>
         <p>
           © 2026 TripMate. Explore. Discover. Travel.
         </p>
       </footer>
-
     </div>
   );
 }
-
+        
 export default App;
